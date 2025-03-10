@@ -1,6 +1,9 @@
 # OSX
 #
 .DS_Store
+*.parquet
+venv
+__pycache__
 
 # Xcode
 #
