@@ -10,7 +10,6 @@ import {
   query,
   insert,
   initBucket,
-  // queryBucket,
   cloudSinkParquet,
   cloudFetchParquet,
 } from './test-rust-module';
@@ -29,11 +28,9 @@ export default function App() {
 
   const onRefreshTemperatureList = async () => {
     setOnProcess(true);
-    // const dateRange = { start: '2025-02-01', end: '2025-02-28' };
     const sqlQuery = 'SELECT * FROM temperature ORDER BY date DESC LIMIT 25';
     try {
       const localTemperatureData = await query(dbName, sqlQuery, null);
-      // const cloudTemperatureData = await queryBucket(userName, dbName, sqlQuery, dateRange);
       setTemperatureList(localTemperatureData);
     } catch (error) {
       console.error('Error fetching temperature list:', error);
@@ -62,7 +59,7 @@ export default function App() {
   const cloudSinkData = async () => {
     setOnProcess(true);
     try {
-      const response = await cloudSinkParquet(userName, 'test', 'temperature');
+      const response = await cloudSinkParquet('test', 'temperature');
       console.info(response);
     } catch (error) {
       console.error('Error sinking monthly data:', error);

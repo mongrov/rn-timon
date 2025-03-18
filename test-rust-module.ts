@@ -4,7 +4,8 @@ const { TimonModule } = NativeModules;
 (async () => {
   try {
     const BASE_PATH = '/data/data/com.rustexample/files/timon';
-    await TimonModule.initTimon(BASE_PATH, 5);
+    let init_result = await TimonModule.nativeInitTimon(BASE_PATH, 5, 'rntimon123');
+    console.log('initTimon Result:', init_result);
   } catch(error) {
     console.error('Error initializing timon:', error);
   }
@@ -23,7 +24,7 @@ export const parseJson = (obj: any) => {
 // ******************************** File Storage ********************************
 export const createDatabase = async (dbName: string): Promise<string|undefined> => {
   try {
-    const result = await TimonModule.createDatabase(dbName);
+    const result = await TimonModule.nativeCreateDatabase(dbName);
     console.info(result, 'createDatabase');
     return parseJson(result);
   } catch(error) {
@@ -33,7 +34,7 @@ export const createDatabase = async (dbName: string): Promise<string|undefined> 
 
 export const createTable = async (dbName: string, tableName: string, _schema?: String) => {
   try {
-    const result = await TimonModule.createTable(dbName, tableName, _schema);
+    const result = await TimonModule.nativeCreateTable(dbName, tableName, _schema);
     console.info(result, 'createTable');
     return parseJson(result);
   } catch(error) {
@@ -43,7 +44,7 @@ export const createTable = async (dbName: string, tableName: string, _schema?: S
 
 export const listDatabases = async () => {
   try {
-    const result = await TimonModule.listDatabases();
+    const result = await TimonModule.nativeListDatabases();
     console.info(result, 'listDatabases');
     const json_value = parseJson(result).json_value;
     return json_value;
@@ -54,7 +55,7 @@ export const listDatabases = async () => {
 
 export const listTables = async (dbName: string) => {
   try {
-    const result = await TimonModule.listTables(dbName);
+    const result = await TimonModule.nativeListTables(dbName);
     console.info(result, 'listTables');
     const json_value = parseJson(result).json_value;
     return json_value;
@@ -65,7 +66,7 @@ export const listTables = async (dbName: string) => {
 
 export const deleteDatabase = async (dbName: string) => {
   try {
-    const result = await TimonModule.deleteDatabase(dbName);
+    const result = await TimonModule.nativeDeleteDatabase(dbName);
     console.info(result, 'deleteDatabase');
     return parseJson(result);
   } catch(error) {
@@ -75,7 +76,7 @@ export const deleteDatabase = async (dbName: string) => {
 
 export const deleteTable = async (dbName: string, tableName: string) => {
   try {
-    const result = await TimonModule.deleteTable(dbName, tableName);
+    const result = await TimonModule.nativeDeleteTable(dbName, tableName);
     console.info(result, 'deleteTable');
     return parseJson(result);
   } catch(error) {
@@ -85,7 +86,7 @@ export const deleteTable = async (dbName: string, tableName: string) => {
 
 export const query = async (dbName: string, sqlQuery: string, userName: string | null) => {
   try {
-    const result = await TimonModule.query(dbName, sqlQuery, userName);
+    const result = await TimonModule.nativeQuery(dbName, sqlQuery, userName);
     console.info(result, 'query');
     const json_value = parseJson(result).json_value;
     return json_value;
@@ -96,7 +97,7 @@ export const query = async (dbName: string, sqlQuery: string, userName: string |
 
 export const insert = async (dbName: string, tableName: string, jsonData: Array<object>) => {
   try {
-    const result = await TimonModule.insert(dbName, tableName, JSON.stringify(jsonData));
+    const result = await TimonModule.nativeInsert(dbName, tableName, JSON.stringify(jsonData));
     console.info(result, 'insert');
     return parseJson(result);
   } catch(error) {
@@ -107,7 +108,7 @@ export const insert = async (dbName: string, tableName: string, jsonData: Array<
 // ******************************** S3 Compatible Storage ********************************
 export const initBucket = async (bucket_endpoint: string, bucket_name: string, access_key_id: string, secret_access_key: string, bucket_region: string) => {
   try {
-    const result = await TimonModule.initBucket(bucket_endpoint, bucket_name, access_key_id, secret_access_key, bucket_region);
+    const result = await TimonModule.nativeInitBucket(bucket_endpoint, bucket_name, access_key_id, secret_access_key, bucket_region);
     console.info(result, 'initBucket');
     return result;
   } catch(error) {
@@ -115,20 +116,10 @@ export const initBucket = async (bucket_endpoint: string, bucket_name: string, a
   }
 };
 
-export const queryBucket = async (userName: string, dbName: string, sqlQuery: string, dateRange: { start: string, end: string }) => {
-  try {
-    const result = await TimonModule.queryBucket(userName, dbName, sqlQuery, dateRange);
-    console.info(result, 'queryBucket');
-    const json_value = parseJson(result).json_value;
-    return json_value;
-  } catch (error) {
-    console.error('Error calling queryBucket: ', error);
-  }
-};
 
-export const cloudSinkParquet = async (userName: String, dbName: String, tableName: String) => {
+export const cloudSinkParquet = async (dbName: String, tableName: String) => {
   try {
-    const result = await TimonModule.cloudSinkParquet(userName, dbName, tableName);
+    const result = await TimonModule.nativeCloudSinkParquet(dbName, tableName);
     console.info(result, 'cloudSinkParquet');
     return parseJson(result);
   } catch(error) {
@@ -138,7 +129,7 @@ export const cloudSinkParquet = async (userName: String, dbName: String, tableNa
 
 export const cloudFetchParquet = async (userName: String, dbName: String, tableName: String, dateRange: { start: string, end: string }) => {
   try {
-    const result = await TimonModule.cloudFetchParquet(userName, dbName, tableName, dateRange);
+    const result = await TimonModule.nativeCloudFetchParquet(userName, dbName, tableName, dateRange);
     console.info(result, 'cloudFetchParquet');
     return parseJson(result);
   } catch(error) {

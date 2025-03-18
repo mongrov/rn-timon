@@ -2,6 +2,7 @@ package com.rustexample
 
 import com.facebook.react.bridge.*
 import com.facebook.react.module.annotations.ReactModule
+import java.lang.reflect.Method
 
 @ReactModule(name = TimonModule.NAME)
 class TimonModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
@@ -20,22 +21,22 @@ class TimonModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     }
 
     // ******************************** File Storage ********************************
-    external fun initTimon(storagePath: String, bucketInterval: Int): String
-    external fun createDatabase(dbName: String): String
-    external fun createTable(dbName: String, tableName: String, schema: String): String
-    external fun listDatabases(): String
-    external fun listTables(dbName: String): String
-    external fun deleteDatabase(dbName: String): String
-    external fun deleteTable(dbName: String, tableName: String): String
-    external fun insert(dbName: String, tableName: String, jsonData: String): String
-    external fun query(dbName: String, sqlQuery: String, userName: String?): String
+    external fun nativeInitTimon(storagePath: String, bucketInterval: Int, userName: String): String
+    external fun nativeCreateDatabase(dbName: String): String
+    external fun nativeCreateTable(dbName: String, tableName: String, schema: String): String
+    external fun nativeListDatabases(): String
+    external fun nativeListTables(dbName: String): String
+    external fun nativeDeleteDatabase(dbName: String): String
+    external fun nativeDeleteTable(dbName: String, tableName: String): String
+    external fun nativeInsert(dbName: String, tableName: String, jsonData: String): String
+    external fun nativeQuery(dbName: String, sqlQuery: String, userName: String?): String
 
 
     // ******************************** S3 Compatible Storage ********************************
-    external fun initBucket(bucket_endpoint: String, bucket_name: String, access_key_id: String, secret_access_key: String, bucket_region: String): String
-    external fun queryBucket(userName: String, dbName: String, sqlQuery: String, dateRange: Map<String, String>): String
-    external fun cloudSinkParquet(userName: String, dbName: String, tableName: String): String
-    external fun cloudFetchParquet(userName: String, dbName: String, tableName: String, dateRange: Map<String, String>): String
+    external fun nativeInitBucket(bucket_endpoint: String, bucket_name: String, access_key_id: String, secret_access_key: String, bucket_region: String): String
+    external fun nativeCloudSyncParquet(dbName: String, tableName: String, dateRange: Map<String, String>, userName: String?): String
+    external fun nativeCloudSinkParquet(dbName: String, tableName: String): String
+    external fun nativeCloudFetchParquet(userName: String, dbName: String, tableName: String, dateRange: Map<String, String>): String
 
     override fun getName(): String {
         return NAME
@@ -44,9 +45,9 @@ class TimonModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     // ******************************** File Storage Methods ********************************
 
     @ReactMethod
-    fun initTimon(storagePath: String, bucketInterval: Int, promise: Promise) {
+    fun nativeInitTimon(storagePath: String, bucketInterval: Int, userName: String, promise: Promise) {
         try {
-            val result = initTimon(storagePath, bucketInterval)
+            val result = nativeInitTimon(storagePath, bucketInterval, userName)
             promise.resolve(result)
         } catch (e: Exception) {
             promise.reject("Error initializing Timon", e)
@@ -54,9 +55,9 @@ class TimonModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     }
 
     @ReactMethod
-    fun createDatabase(dbName: String, promise: Promise) {
+    fun nativeCreateDatabase(dbName: String, promise: Promise) {
         try {
-            val result = createDatabase(dbName)
+            val result = nativeCreateDatabase(dbName)
             promise.resolve(result)
         } catch (e: Exception) {
             promise.reject("Error creating database", e)
@@ -64,9 +65,9 @@ class TimonModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     }
 
     @ReactMethod
-    fun createTable(dbName: String, tableName: String, schema: String, promise: Promise) {
+    fun nativeCreateTable(dbName: String, tableName: String, schema: String, promise: Promise) {
         try {
-            val result = createTable(dbName, tableName, schema)
+            val result = nativeCreateTable(dbName, tableName, schema)
             promise.resolve(result)
         } catch (e: Exception) {
             promise.reject("Error creating table", e)
@@ -74,9 +75,9 @@ class TimonModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     }
 
     @ReactMethod
-    fun listDatabases(promise: Promise) {
+    fun nativeListDatabases(promise: Promise) {
         try {
-            val result = listDatabases()
+            val result = nativeListDatabases()
             promise.resolve(result)
         } catch (e: Exception) {
             promise.reject("Error listing databases", e)
@@ -84,9 +85,9 @@ class TimonModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     }
 
     @ReactMethod
-    fun listTables(dbName: String, promise: Promise) {
+    fun nativeListTables(dbName: String, promise: Promise) {
         try {
-            val result = listTables(dbName)
+            val result = nativeListTables(dbName)
             promise.resolve(result)
         } catch (e: Exception) {
             promise.reject("Error listing tables", e)
@@ -94,9 +95,9 @@ class TimonModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     }
 
     @ReactMethod
-    fun deleteDatabase(dbName: String, promise: Promise) {
+    fun nativeDeleteDatabase(dbName: String, promise: Promise) {
         try {
-            val result = deleteDatabase(dbName)
+            val result = nativeDeleteDatabase(dbName)
             promise.resolve(result)
         } catch (e: Exception) {
             promise.reject("Error deleting database", e)
@@ -104,9 +105,9 @@ class TimonModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     }
 
     @ReactMethod
-    fun deleteTable(dbName: String, tableName: String, promise: Promise) {
+    fun nativeDeleteTable(dbName: String, tableName: String, promise: Promise) {
         try {
-            val result = deleteTable(dbName, tableName)
+            val result = nativeDeleteTable(dbName, tableName)
             promise.resolve(result)
         } catch (e: Exception) {
             promise.reject("Error deleting table", e)
@@ -114,19 +115,19 @@ class TimonModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     }
 
     @ReactMethod
-    fun insert(dbName: String, tableName: String, jsonData: String, promise: Promise) {
+    fun nativeInsert(dbName: String, tableName: String, jsonData: String, promise: Promise) {
         try {
-            val result = insert(dbName, tableName, jsonData)
+            val result = nativeInsert(dbName, tableName, jsonData)
             promise.resolve(result)
         } catch (e: Exception) {
-            promise.reject("Error inserting data", e)
+            promise.reject("Error nativeInserting data", e)
         }
     }
 
     @ReactMethod
-    fun query(dbName: String, sqlQuery: String, userName: String?, promise: Promise) {
+    fun nativeQuery(dbName: String, sqlQuery: String, userName: String?, promise: Promise) {
         try {
-            val result = query(dbName, sqlQuery, userName)
+            val result = nativeQuery(dbName, sqlQuery, userName)
             promise.resolve(result)
         } catch (e: Exception) {
             promise.reject("Error querying", e)
@@ -136,9 +137,9 @@ class TimonModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     // ******************************** S3 Compatible Storage Methods ********************************
 
     @ReactMethod
-    fun initBucket(bucket_endpoint: String, bucket_name: String, access_key_id: String, secret_access_key: String, bucket_region: String, promise: Promise) {
+    fun nativeInitBucket(bucket_endpoint: String, bucket_name: String, access_key_id: String, secret_access_key: String, bucket_region: String, promise: Promise) {
         try {
-            val result = initBucket(bucket_endpoint, bucket_name, access_key_id, secret_access_key, bucket_region)
+            val result = nativeInitBucket(bucket_endpoint, bucket_name, access_key_id, secret_access_key, bucket_region)
             promise.resolve(result)
         } catch (e: Exception) {
             promise.reject("Error initializing bucket", e)
@@ -146,27 +147,9 @@ class TimonModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     }
 
     @ReactMethod
-    fun queryBucket(userName: String, dbName: String, sqlQuery: String, dateRange: ReadableMap?, promise: Promise) {
+    fun nativeCloudSinkParquet(dbName: String, tableName: String, promise: Promise) {
         try {
-            val rustDateRange = if (dateRange != null && dateRange.hasKey("start") && dateRange.hasKey("end")) {
-                mapOf(
-                    "start" to dateRange.getString("start")!!,
-                    "end" to dateRange.getString("end")!!
-                )
-            } else {
-                mapOf("start" to "1970-01-01", "end" to "1970-01-02")
-            }
-            val result = queryBucket(userName, dbName, sqlQuery, rustDateRange)
-            promise.resolve(result)
-        } catch (e: Exception) {
-            promise.reject("Error querying bucket", e)
-        }
-    }
-
-    @ReactMethod
-    fun cloudSinkParquet(userName: String, dbName: String, tableName: String, promise: Promise) {
-        try {
-            val result = cloudSinkParquet(userName, dbName, tableName)
+            val result = nativeCloudSinkParquet(dbName, tableName)
             promise.resolve(result)
         } catch (e: Exception) {
             promise.reject("Error sinking monthly parquet", e)
@@ -174,7 +157,7 @@ class TimonModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     }
 
     @ReactMethod
-    fun cloudFetchParquet(userName: String, dbName: String, tableName: String, dateRange: ReadableMap?, promise: Promise) {
+    fun nativeCloudFetchParquet(userName: String, dbName: String, tableName: String, dateRange: ReadableMap?, promise: Promise) {
         try {
             val rustDateRange = if (dateRange != null && dateRange.hasKey("start") && dateRange.hasKey("end")) {
                 mapOf(
@@ -184,7 +167,7 @@ class TimonModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
             } else {
                 mapOf("start" to "1970-01-01", "end" to "1970-01-02")
             }
-            val result = cloudFetchParquet(userName, dbName, tableName, rustDateRange)
+            val result = nativeCloudFetchParquet(userName, dbName, tableName, rustDateRange)
             promise.resolve(result)
         } catch (e: Exception) {
             promise.reject("Error sinking monthly parquet", e)
