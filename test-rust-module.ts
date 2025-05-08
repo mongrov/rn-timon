@@ -4,7 +4,7 @@ const { TimonModule } = NativeModules;
 (async () => {
   try {
     const BASE_PATH = '/data/data/com.rustexample/files/timon';
-    let init_result = await TimonModule.nativeInitTimon(BASE_PATH, 5, 'rntimon123');
+    let init_result = await TimonModule.nativeInitTimon(BASE_PATH, 10800, 'rntimon123');
     console.log('initTimon Result:', init_result);
   } catch(error) {
     console.error('Error initializing timon:', error);

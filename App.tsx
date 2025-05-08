@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, FlatList, Button, StatusBar } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Button, StatusBar, Alert } from 'react-native';
 import {
   createDatabase,
   createTable,
@@ -13,6 +13,14 @@ import {
   cloudSinkParquet,
   cloudFetchParquet,
 } from './test-rust-module';
+import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+
+dayjs.extend(customParseFormat);
+
+
+const FULL_DATE_24_HOUR_TIME_FORMAT = 'YYYY.MM.DD HH:mm:ss';
+const TABLE_NAME_FOR_6_MONTH_DATA = 'spo2';
 
 const initBucket_result = initBucket('https://s3.us-west-2.amazonaws.com', 'zivaoneapp', 'xx', 'xx', 'us-west-2');
 console.log('initBucket Result: ', initBucket_result);
@@ -23,6 +31,10 @@ export default function App() {
 
   const [databasesList, setDatabasesList] = useState([]);
   const [tablesList, setTablesList] = useState([]);
+
+  const [insertTime, setInsertTime] = useState(0);
+  const [queryTime, setQueryTime] = useState(0);
+
   const dbName = 'test';
   const userName = 'rntimon123';
 
@@ -90,6 +102,78 @@ export default function App() {
     </View>
   );
 
+  const insertRandom6MonthData = async () => {
+    const start = '2024.11.01 00:00:00';
+    const end = '2025.05.01 00:00:00';
+
+    const startTime = dayjs(start, FULL_DATE_24_HOUR_TIME_FORMAT);
+    const endTime = dayjs(end, FULL_DATE_24_HOUR_TIME_FORMAT);
+
+    const data = [];
+
+    let current = startTime;
+
+    while (current.isBefore(endTime)) {
+      data.push({
+        date: current.format(FULL_DATE_24_HOUR_TIME_FORMAT),
+        automaticSpo2Data: Math.floor(Math.random() * 100)
+      });
+
+      current = current.add(5, 'minute');
+    }
+
+    const queryStart = Date.now();
+    console.log({ insertStart: queryStart });
+    const insertResult = await insert(dbName, TABLE_NAME_FOR_6_MONTH_DATA, data);
+    const queryEnd = Date.now();
+    console.log({ insertEnd :queryEnd });
+    const differenceInSeconds = (queryEnd - queryStart) / 1000;
+    Alert.alert('', `Insert took ${differenceInSeconds} seconds`);
+
+    console.log({ differenceInSeconds });
+    console.log({ insertResult });
+  };
+
+  const deleteTableFor6MonthData = async () => {
+    const deleteResult = await deleteTable(dbName, TABLE_NAME_FOR_6_MONTH_DATA);
+    console.log({ deleteResult })
+  }
+
+  const createTableFor6MonthData = async () => {
+    const createTableResult = await createTable(dbName, TABLE_NAME_FOR_6_MONTH_DATA, JSON.stringify({
+      "date": {
+        "type": "int",
+        "required": true,
+        "unique": true,
+        "datetime": true
+      },
+      "automaticSpo2Data": {
+        "type": "int",
+        "required": true
+      },
+      "is_sync": {
+        "type": "bool"
+      }
+    }));
+
+    console.log({ createTableResult })
+  }
+
+  const query6MonthData = async () => {
+    setInsertTime(0);
+    setQueryTime(0);
+    const startTime = Date.now();
+    console.log({ queryStart: startTime });
+    const test = await query(dbName, `SELECT * FROM ${TABLE_NAME_FOR_6_MONTH_DATA}`, null);
+    console.log({ testLength: test?.length, firstItem: test?.[0], lastItem: test?.[test?.length - 1] })
+    const endTime = Date.now();
+    console.log({ queryEnd: endTime });
+
+    const differenceInSeconds = (endTime - startTime) / 1000;
+    Alert.alert('', `Query took ${differenceInSeconds} seconds`);
+    console.log({ differenceInSeconds });
+  }
+
   const renderDBItem = ({ item }: any) => <Text>{item}</Text>;
   const renderTableItem = ({ item }: any) => <Text>{item}</Text>;
 
@@ -106,6 +190,38 @@ export default function App() {
         onPress={insertRandomTempData}
         disabled={onProcess}
       />
+
+      <View style={{ height: 20 }} />
+
+      <Button
+        title="Create table for 6 month data"
+        onPress={createTableFor6MonthData}
+        disabled={onProcess}
+      />
+      <Button
+        title="Delete table for 6 month data"
+        color="red"
+        onPress={deleteTableFor6MonthData}
+        disabled={onProcess}
+      />
+
+      <View style={{ height: 20 }} />
+
+      <Button
+        title="Insert Random 6 month data"
+        onPress={insertRandom6MonthData}
+        disabled={onProcess}
+      />
+
+      <Button
+        title="Query 6 month data"
+        color="red"
+        onPress={query6MonthData}
+        disabled={onProcess}
+      />
+
+
+
       <FlatList
         data={temperatureList}
         renderItem={renderTemperatureItem}
@@ -130,7 +246,7 @@ export default function App() {
         onPress={async () => {
           try {
             const schema = JSON.stringify({
-              date: { type: 'int', required: true, unique: true, datetime: true},
+              date: { type: 'int', required: true, unique: true, datetime: true },
               temperature: { type: 'float', required: true },
               humidity: { type: 'float', required: true },
               status: { type: 'string', required: false },
