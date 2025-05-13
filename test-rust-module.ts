@@ -4,7 +4,7 @@ const { TimonModule } = NativeModules;
 (async () => {
   try {
     const BASE_PATH = '/data/data/com.rustexample/files/timon';
-    let init_result = await TimonModule.nativeInitTimon(BASE_PATH, 5, 'rntimon123');
+    let init_result = await TimonModule.nativeInitTimon(BASE_PATH, 1440, 'rntimon123');
     console.log('initTimon Result:', init_result);
   } catch(error) {
     console.error('Error initializing timon:', error);
@@ -87,7 +87,7 @@ export const deleteTable = async (dbName: string, tableName: string) => {
 export const query = async (dbName: string, sqlQuery: string, userName: string | null) => {
   try {
     const result = await TimonModule.nativeQuery(dbName, sqlQuery, userName);
-    console.info(result, 'query');
+    // console.info(result, 'query');
     const json_value = parseJson(result).json_value;
     return json_value;
   } catch (error) {

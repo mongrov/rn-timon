@@ -25,12 +25,28 @@ export default function App() {
   const [tablesList, setTablesList] = useState([]);
   const dbName = 'test';
   const userName = 'rntimon123';
+  const RECORDS_COUNT = 500_000;
 
   const onRefreshTemperatureList = async () => {
     setOnProcess(true);
-    const sqlQuery = 'SELECT * FROM temperature ORDER BY date DESC LIMIT 25';
     try {
+      const startTime = new Date(); // ************************************ startTime ************************************
+
+      // const results = await Promise.all([
+      //   query(dbName, 'SELECT * FROM temperature ORDER BY date DESC LIMIT 25', null),
+      //   query(dbName, 'SELECT * FROM temperature ORDER BY date ASC LIMIT 25', null),
+      //   query(dbName, 'SELECT AVG(humidity) FROM temperature', null),
+      //   query(dbName, 'SELECT MIN(humidity) FROM temperature', null),
+      //   query(dbName, 'SELECT MAX(humidity) FROM temperature', null),
+      // ]);
+
+      const sqlQuery = 'SELECT * FROM temperature ORDER BY date DESC LIMIT 25';
       const localTemperatureData = await query(dbName, sqlQuery, null);
+
+      const endTime = new Date(); // ************************************ endTime ************************************
+      const durationSeconds = (endTime.getTime() - startTime.getTime()) / 1000;
+      console.log(`Execution time: ${durationSeconds.toFixed(3)} seconds`);
+
       setTemperatureList(localTemperatureData);
     } catch (error) {
       console.error('Error fetching temperature list:', error);
@@ -41,12 +57,14 @@ export default function App() {
   const insertRandomTempData = async () => {
     setOnProcess(true);
     await new Promise((res) => setTimeout(res, 500));
-    const randomNumber = () => Math.random() * 100;
-    const randomData = Array.from({ length: 100 }, (_, index) => ({
-      date: new Date((Date.now() + (index * 2))).toISOString(),
-      temperature: randomNumber(),
-      humidity: randomNumber(),
-    }));
+    const currentTime = Date.now();
+    const randomData = Array.from({ length: RECORDS_COUNT }, (_, index) => { 
+      return {
+        date: new Date(currentTime + (index * 1000)).toISOString(),
+        temperature: 80 + Math.random() * 20,
+        humidity: 40 + Math.random() * 20,
+      };
+    });
 
     try {
       await insert(dbName, 'temperature', randomData);
@@ -95,11 +113,13 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <Button
-        title="Refresh Temperature List"
-        onPress={onRefreshTemperatureList}
-        disabled={onProcess}
-      />
+      <View style={{ marginBottom: 20 }}>
+        <Button
+          title="Refresh Temperature List"
+          onPress={onRefreshTemperatureList}
+          disabled={onProcess}
+        />
+      </View>
       <Button
         title="Insert Random Temperature"
         color="red"

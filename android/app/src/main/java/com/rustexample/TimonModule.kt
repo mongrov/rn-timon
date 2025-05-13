@@ -126,12 +126,14 @@ class TimonModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
 
     @ReactMethod
     fun nativeQuery(dbName: String, sqlQuery: String, userName: String?, promise: Promise) {
-        try {
-            val result = nativeQuery(dbName, sqlQuery, userName)
-            promise.resolve(result)
-        } catch (e: Exception) {
-            promise.reject("Error querying", e)
-        }
+        Thread {
+            try {
+                val result = nativeQuery(dbName, sqlQuery, userName)
+                promise.resolve(result)
+            } catch (e: Exception) {
+                promise.reject("Error querying", e)
+            }
+        }.start()
     }
 
     // ******************************** S3 Compatible Storage Methods ********************************
