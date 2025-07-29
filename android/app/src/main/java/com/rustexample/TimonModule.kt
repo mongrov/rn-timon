@@ -38,6 +38,10 @@ class TimonModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     external fun nativeCloudSinkParquet(dbName: String, tableName: String): String
     external fun nativeCloudFetchParquet(userName: String, dbName: String, tableName: String, dateRange: Map<String, String>): String
 
+    // ******************************** Sync Metadata ********************************
+    external fun nativeGetSyncMetadata(dbName: String, tableName: String): String
+    external fun nativeGetAllSyncMetadata(dbName: String): String
+
     override fun getName(): String {
         return NAME
     }
@@ -173,6 +177,28 @@ class TimonModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
             promise.resolve(result)
         } catch (e: Exception) {
             promise.reject("Error sinking monthly parquet", e)
+        }
+    }
+
+    // ******************************** Sync Metadata Methods ********************************
+
+    @ReactMethod
+    fun nativeGetSyncMetadata(dbName: String, tableName: String, promise: Promise) {
+        try {
+            val result = nativeGetSyncMetadata(dbName, tableName)
+            promise.resolve(result)
+        } catch (e: Exception) {
+            promise.reject("Error getting sync metadata", e)
+        }
+    }
+
+    @ReactMethod
+    fun nativeGetAllSyncMetadata(dbName: String, promise: Promise) {
+        try {
+            val result = nativeGetAllSyncMetadata(dbName)
+            promise.resolve(result)
+        } catch (e: Exception) {
+            promise.reject("Error getting all sync metadata", e)
         }
     }
 }

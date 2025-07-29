@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, FlatList, Button, StatusBar } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Button, StatusBar, Alert } from 'react-native';
 import {
   createDatabase,
   createTable,
@@ -12,6 +12,8 @@ import {
   initBucket,
   cloudSinkParquet,
   cloudFetchParquet,
+  getSyncMetadata,
+  getAllSyncMetadata,
 } from './test-rust-module';
 
 const initBucket_result = initBucket('https://s3.us-west-2.amazonaws.com', 'zivaoneapp', 'xx', 'xx', 'us-west-2');
@@ -25,7 +27,7 @@ export default function App() {
   const [tablesList, setTablesList] = useState([]);
   const dbName = 'test';
   const userName = 'rntimon123';
-  const RECORDS_COUNT = 500_000;
+  const RECORDS_COUNT = 100_000;
 
   const onRefreshTemperatureList = async () => {
     setOnProcess(true);
@@ -77,7 +79,7 @@ export default function App() {
   const cloudSinkData = async () => {
     setOnProcess(true);
     try {
-      const response = await cloudSinkParquet('test', 'temperature');
+      const response = await cloudSinkParquet(dbName, 'temperature');
       console.info(response);
     } catch (error) {
       console.error('Error sinking monthly data:', error);
@@ -89,10 +91,34 @@ export default function App() {
     setOnProcess(true);
     try {
       const dateRange = { start: '2025-02-01', end: '2025-02-28' };
-      const response = await cloudFetchParquet(userName, 'test', 'temperature', dateRange);
+      const response = await cloudFetchParquet(userName, dbName, 'temperature', dateRange);
       console.info(response);
     } catch (error) {
       console.error('Error sinking monthly data:', error);
+    }
+    setOnProcess(false);
+  };
+
+  const testGetSyncMetadata = async () => {
+    setOnProcess(true);
+    try {
+      const response = await getSyncMetadata(dbName, 'temperature');
+      console.info('Sync Metadata for temperature table:', response);
+      Alert.alert('Sync Metadata', `Sync Metadata: ${JSON.stringify(response, null, 2)}`);
+    } catch (error) {
+      console.error('Error getting sync metadata:', error);
+    }
+    setOnProcess(false);
+  };
+
+  const testGetAllSyncMetadata = async () => {
+    setOnProcess(true);
+    try {
+      const response = await getAllSyncMetadata(dbName);
+      console.info('All Sync Metadata for database:', response);
+      Alert.alert('All Sync Metadata', `All Sync Metadata: ${JSON.stringify(response, null, 2)}`);
+    } catch (error) {
+      console.error('Error getting all sync metadata:', error);
     }
     setOnProcess(false);
   };
@@ -235,6 +261,20 @@ export default function App() {
         title="fetch data from S3"
         color="pink"
         onPress={cloudFetchUserData}
+        disabled={onProcess}
+      />
+
+      <Text>*************** Sync Metadata Testing ***************</Text>
+      <Button
+        title="Get Sync Metadata (temperature table)"
+        color="blue"
+        onPress={testGetSyncMetadata}
+        disabled={onProcess}
+      />
+      <Button
+        title="Get All Sync Metadata (database)"
+        color="teal"
+        onPress={testGetAllSyncMetadata}
         disabled={onProcess}
       />
       <StatusBar barStyle="default" />
