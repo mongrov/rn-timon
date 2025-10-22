@@ -29,7 +29,8 @@ class TimonModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     external fun nativeDeleteDatabase(dbName: String): String
     external fun nativeDeleteTable(dbName: String, tableName: String): String
     external fun nativeInsert(dbName: String, tableName: String, jsonData: String): String
-    external fun nativeQuery(dbName: String, sqlQuery: String, userName: String?): String
+    external fun nativeQuery(dbName: String, sqlQuery: String, userName: String?, limitPartitions: Int): String
+    external fun nativePreloadTables(dbName: String, tableNames: Array<String>, userName: String?): String
 
 
     // ******************************** S3 Compatible Storage ********************************
@@ -129,13 +130,29 @@ class TimonModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     }
 
     @ReactMethod
-    fun nativeQuery(dbName: String, sqlQuery: String, userName: String?, promise: Promise) {
+    fun nativeQuery(dbName: String, sqlQuery: String, userName: String?, limitPartitions: Int, promise: Promise) {
         Thread {
             try {
-                val result = nativeQuery(dbName, sqlQuery, userName)
+                val result = nativeQuery(dbName, sqlQuery, userName, limitPartitions)
                 promise.resolve(result)
             } catch (e: Exception) {
                 promise.reject("Error querying", e)
+            }
+        }.start()
+    }
+
+    @ReactMethod
+    fun nativePreloadTables(dbName: String, tableNames: ReadableArray, userName: String?, promise: Promise) {
+        Thread {
+            try {
+                // Convert ReadableArray to Array<String>
+                val tableNamesArray = Array(tableNames.size()) { i ->
+                    tableNames.getString(i) ?: ""
+                }
+                val result = nativePreloadTables(dbName, tableNamesArray, userName)
+                promise.resolve(result)
+            } catch (e: Exception) {
+                promise.reject("Error preloading tables", e)
             }
         }.start()
     }

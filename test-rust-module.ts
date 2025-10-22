@@ -84,14 +84,25 @@ export const deleteTable = async (dbName: string, tableName: string) => {
   }
 };
 
-export const query = async (dbName: string, sqlQuery: string, userName: string | null) => {
+export const query = async (dbName: string, sqlQuery: string, userName: string | null, limitPartitions: number = 0) => {
   try {
-    const result = await TimonModule.nativeQuery(dbName, sqlQuery, userName);
+    const result = await TimonModule.nativeQuery(dbName, sqlQuery, userName, limitPartitions);
     console.info(result, 'query');
     const json_value = parseJson(result).json_value;
     return json_value;
   } catch (error) {
     console.error('Error calling query: ', error);
+  }
+};
+
+export const preloadTables = async (dbName: string, tableNames: string[], userName: string | null) => {
+  try {
+    const result = await TimonModule.nativePreloadTables(dbName, tableNames, userName);
+    console.info(result, 'preloadTables');
+    const parsedResult = parseJson(result);
+    return parsedResult;
+  } catch (error) {
+    console.error('Error calling preloadTables: ', error);
   }
 };
 

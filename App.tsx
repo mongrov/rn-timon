@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, FlatList, Button, StatusBar, Alert } from 'react-native';
 import {
   createDatabase,
@@ -14,6 +14,7 @@ import {
   cloudFetchParquet,
   getSyncMetadata,
   getAllSyncMetadata,
+  preloadTables,
 } from './test-rust-module';
 
 const initBucket_result = initBucket('https://s3.us-west-2.amazonaws.com', 'zivaoneapp', 'xx', 'xx', 'us-west-2');
@@ -29,21 +30,28 @@ export default function App() {
   const userName = 'rntimon123';
   const RECORDS_COUNT = 100_000;
 
+  useEffect(() => {
+    preloadTables(dbName, ['temperature'], userName);
+  }, [dbName, userName]);
+
   const onRefreshTemperatureList = async () => {
     setOnProcess(true);
     try {
       const startTime = new Date(); // ************************************ startTime ************************************
 
       // const results = await Promise.all([
-      //   query(dbName, 'SELECT * FROM temperature ORDER BY date DESC LIMIT 25', null),
-      //   query(dbName, 'SELECT * FROM temperature ORDER BY date ASC LIMIT 25', null),
+      //   query(dbName, 'SELECT * FROM temperature ORDER BY timestamp DESC LIMIT 25', null),
+      //   query(dbName, 'SELECT * FROM temperature ORDER BY timestamp ASC LIMIT 25', null),
       //   query(dbName, 'SELECT AVG(humidity) FROM temperature', null),
       //   query(dbName, 'SELECT MIN(humidity) FROM temperature', null),
       //   query(dbName, 'SELECT MAX(humidity) FROM temperature', null),
       // ]);
 
-      const sqlQuery = 'SELECT * FROM temperature ORDER BY date DESC LIMIT 25';
+      const sqlQuery = 'SELECT * FROM temperature ORDER BY timestamp DESC LIMIT 25';
       const localTemperatureData = await query(dbName, sqlQuery, null);
+
+      // const limitPartitions = await query(dbName, 'SELECT COUNT(*) as count FROM temperature', null, 1);
+      // console.info('Count of temperature table:', limitPartitions);
 
       const endTime = new Date(); // ************************************ endTime ************************************
       const durationSeconds = (endTime.getTime() - startTime.getTime()) / 1000;
@@ -62,7 +70,7 @@ export default function App() {
     const currentTime = Date.now();
     const randomData = Array.from({ length: RECORDS_COUNT }, (_, index) => { 
       return {
-        date: new Date(currentTime + (index * 1000)).toISOString(),
+        timestamp: new Date(currentTime + (index * 5000)).toISOString(),
         temperature: 80 + Math.random() * 20,
         humidity: 40 + Math.random() * 20,
       };
@@ -126,7 +134,7 @@ export default function App() {
   const renderTemperatureItem = ({ item }: any) => (
     <View style={styles.item}>
       <Text style={styles.timestamp}>
-        {new Date(item.date * 1000).toLocaleDateString()} {new Date(item.date * 1000).toLocaleTimeString()}
+        {new Date(item.timestamp * 1000).toLocaleDateString()} {new Date(item.timestamp * 1000).toLocaleTimeString()}
       </Text>
       <Text>
         Temp: {item.temperature.toFixed(2)} | Humidity: {item.humidity.toFixed(2)}
@@ -176,7 +184,7 @@ export default function App() {
         onPress={async () => {
           try {
             const schema = JSON.stringify({
-              date: { type: 'int', required: true, unique: true, datetime: true},
+              timestamp: { type: 'int', required: true, unique: true, datetime: true},
               temperature: { type: 'float', required: true },
               humidity: { type: 'float', required: true },
               status: { type: 'string', required: false },
