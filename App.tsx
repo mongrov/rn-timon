@@ -1,171 +1,144 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, FlatList, Button, StatusBar, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, Text, View, Button, StatusBar, Alert } from 'react-native';
 import {
   createDatabase,
   createTable,
-  listDatabases,
-  listTables,
+  // listDatabases,
+  // listTables,
+  // preloadTables,
   deleteDatabase,
   deleteTable,
   query,
   insert,
-  initBucket,
-  cloudSinkParquet,
-  cloudFetchParquet,
-  getSyncMetadata,
-  getAllSyncMetadata,
-  preloadTables,
 } from './test-rust-module';
 
-const initBucket_result = initBucket('https://s3.us-west-2.amazonaws.com', 'zivaoneapp', 'xx', 'xx', 'us-west-2');
-console.log('initBucket Result: ', initBucket_result);
-
 export default function App() {
-  const [temperatureList, setTemperatureList] = useState([]);
   const [onProcess, setOnProcess] = useState(false);
 
-  const [databasesList, setDatabasesList] = useState([]);
-  const [tablesList, setTablesList] = useState([]);
   const dbName = 'test';
-  const userName = 'rntimon123';
-  const RECORDS_COUNT = 100_000;
 
-  useEffect(() => {
-    preloadTables(dbName, ['temperature'], userName);
-  }, [dbName, userName]);
+  // SPO2 Table Constants
+  const DB_NAME = dbName;
+  const SPO2_TABLE = 'spo2_readings';
+  const TABLES_SCHEMA = {
+    spo2_readings: {
+      date: {
+        type: 'int',
+        required: true,
+        unique: true,
+        datetime: true,
+      },
+      automaticSpo2Data: {
+        type: 'int',
+        required: true,
+      },
+      is_sync: {
+        type: 'bool',
+      },
+    },
+  };
 
-  const onRefreshTemperatureList = async () => {
+  // SPO2 Table Operations
+  const createSpo2Table = async () => {
     setOnProcess(true);
     try {
-      const startTime = new Date(); // ************************************ startTime ************************************
+      const result = await createTable(DB_NAME, SPO2_TABLE, JSON.stringify(TABLES_SCHEMA[SPO2_TABLE]));
+      console.log('✅ Create SPO2 Table Result:', result);
+      Alert.alert('Success', 'SPO2 table created successfully!');
+    } catch (error) {
+      console.error('❌ Error creating SPO2 table:', error);
+      Alert.alert('Error', `Failed to create table: ${error}`);
+    }
+    setOnProcess(false);
+  };
 
-      // const results = await Promise.all([
-      //   query(dbName, 'SELECT * FROM temperature ORDER BY timestamp DESC LIMIT 25', null),
-      //   query(dbName, 'SELECT * FROM temperature ORDER BY timestamp ASC LIMIT 25', null),
-      //   query(dbName, 'SELECT AVG(humidity) FROM temperature', null),
-      //   query(dbName, 'SELECT MIN(humidity) FROM temperature', null),
-      //   query(dbName, 'SELECT MAX(humidity) FROM temperature', null),
-      // ]);
+  const insertSpo2Data = async () => {
+    setOnProcess(true);
+    try {
+      const insertResult = await insert(DB_NAME, SPO2_TABLE, [
+        { date: '2025.10.23 10:00:00', automaticSpo2Data: 90 },
+        { date: '2025.10.23 11:00:00', automaticSpo2Data: 85 },
+        { date: '2025.10.24 05:00:17', automaticSpo2Data: 100 },
+        { date: '2025.10.24 05:30:17', automaticSpo2Data: 97 },
+      ]);
+      console.log('✅ Insert Result:', insertResult);
+      Alert.alert('Success', 'SPO2 data inserted successfully!');
+    } catch (error) {
+      console.error('❌ Error inserting SPO2 data:', error);
+      Alert.alert('Error', `Failed to insert data: ${error}`);
+    }
+    setOnProcess(false);
+  };
 
-      const sqlQuery = 'SELECT * FROM temperature ORDER BY timestamp DESC LIMIT 25';
-      const localTemperatureData = await query(dbName, sqlQuery, null);
+  const deleteSpo2Table = async () => {
+    setOnProcess(true);
+    try {
+      const result = await deleteTable(DB_NAME, SPO2_TABLE);
+      console.log('✅ Delete SPO2 Table Result:', result);
+      Alert.alert('Success', 'SPO2 table deleted successfully!');
+    } catch (error) {
+      console.error('❌ Error deleting SPO2 table:', error);
+      Alert.alert('Error', `Failed to delete table: ${error}`);
+    }
+    setOnProcess(false);
+  };
 
-      // const limitPartitions = await query(dbName, 'SELECT COUNT(*) as count FROM temperature', null, 1);
-      // console.info('Count of temperature table:', limitPartitions);
+  // Test parallel queries with Promise.all to verify race condition fix
+  const testParallelQueries = async () => {
+    setOnProcess(true);
+    try {
+      const startTime = new Date();
 
-      const endTime = new Date(); // ************************************ endTime ************************************
+      const querySQL = `
+        SELECT subquery.*,
+          TO_CHAR(TO_TIMESTAMP(date)::TIMESTAMP AT TIME ZONE 'UTC', '%Y.%m.%d %H:%M:%S') AS utc_date,
+          TO_CHAR(TO_TIMESTAMP(date)::TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/London', '%Y.%m.%d %H:%M:%S') AS formatted_date,
+          TO_CHAR(TO_TIMESTAMP(date)::TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/London', '%I:%M %P') AS formatted_time
+        FROM (
+          SELECT * FROM spo2_readings ORDER BY "date" DESC LIMIT 2
+        ) subquery
+      `;
+
+      console.log('🔄 Running 2 parallel queries with Promise.all...');
+
+      const [latestResult1, latestResult2] = await Promise.all([
+        query(DB_NAME, querySQL, null),
+        query(DB_NAME, querySQL, null),
+      ]);
+
+      const endTime = new Date();
       const durationSeconds = (endTime.getTime() - startTime.getTime()) / 1000;
-      console.log(`Execution time: ${durationSeconds.toFixed(3)} seconds`);
 
-      setTemperatureList(localTemperatureData);
+      console.log('✅ Result 1:', latestResult1);
+      console.log('✅ Result 2:', latestResult2);
+      console.log(`⏱️ Execution time: ${durationSeconds.toFixed(3)} seconds`);
+
     } catch (error) {
-      console.error('Error fetching temperature list:', error);
+      console.error('❌ Error in parallel queries:', error);
+      Alert.alert('Error', `Parallel query failed: ${error}`);
     }
     setOnProcess(false);
   };
 
-  const insertRandomTempData = async () => {
-    setOnProcess(true);
-    await new Promise((res) => setTimeout(res, 500));
-    const currentTime = Date.now();
-    const randomData = Array.from({ length: RECORDS_COUNT }, (_, index) => { 
-      return {
-        timestamp: new Date(currentTime + (index * 5000)).toISOString(),
-        temperature: 80 + Math.random() * 20,
-        humidity: 40 + Math.random() * 20,
-      };
-    });
 
-    try {
-      await insert(dbName, 'temperature', randomData);
-    } catch (error) {
-      console.error('Error inserting data:', error);
-    }
-    setOnProcess(false);
+  const _onPressQueryData = async () => {
+    const queryResult = await query(DB_NAME, `SELECT * FROM ${SPO2_TABLE}`, null, 0);
+    const latestResult = await query(DB_NAME, `
+    SELECT subquery.*,
+    TO_CHAR(TO_TIMESTAMP(date)::TIMESTAMP AT TIME ZONE 'UTC', '%Y.%m.%d %H:%M:%S') AS utc_date,
+    TO_CHAR(TO_TIMESTAMP(date)::TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/London', '%Y.%m.%d %H:%M:%S') AS formatted_date,
+    TO_CHAR(TO_TIMESTAMP(date)::TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/London', '%I:%M %P') as formatted_time
+    FROM (
+    SELECT * FROM spo2_readings ORDER BY \"date\" DESC LIMIT 1
+    ) subquery
+    `, null, 0);
+
+    console.log('latestResult.status', latestResult);
+    console.log('queryResult.status', queryResult);
   };
-
-  const cloudSinkData = async () => {
-    setOnProcess(true);
-    try {
-      const response = await cloudSinkParquet(dbName, 'temperature');
-      console.info(response);
-    } catch (error) {
-      console.error('Error sinking monthly data:', error);
-    }
-    setOnProcess(false);
-  };
-
-  const cloudFetchUserData = async () => {
-    setOnProcess(true);
-    try {
-      const dateRange = { start: '2025-02-01', end: '2025-02-28' };
-      const response = await cloudFetchParquet(userName, dbName, 'temperature', dateRange);
-      console.info(response);
-    } catch (error) {
-      console.error('Error sinking monthly data:', error);
-    }
-    setOnProcess(false);
-  };
-
-  const testGetSyncMetadata = async () => {
-    setOnProcess(true);
-    try {
-      const response = await getSyncMetadata(dbName, 'temperature');
-      console.info('Sync Metadata for temperature table:', response);
-      Alert.alert('Sync Metadata', `Sync Metadata: ${JSON.stringify(response, null, 2)}`);
-    } catch (error) {
-      console.error('Error getting sync metadata:', error);
-    }
-    setOnProcess(false);
-  };
-
-  const testGetAllSyncMetadata = async () => {
-    setOnProcess(true);
-    try {
-      const response = await getAllSyncMetadata(dbName);
-      console.info('All Sync Metadata for database:', response);
-      Alert.alert('All Sync Metadata', `All Sync Metadata: ${JSON.stringify(response, null, 2)}`);
-    } catch (error) {
-      console.error('Error getting all sync metadata:', error);
-    }
-    setOnProcess(false);
-  };
-
-  const renderTemperatureItem = ({ item }: any) => (
-    <View style={styles.item}>
-      <Text style={styles.timestamp}>
-        {new Date(item.timestamp * 1000).toLocaleDateString()} {new Date(item.timestamp * 1000).toLocaleTimeString()}
-      </Text>
-      <Text>
-        Temp: {item.temperature.toFixed(2)} | Humidity: {item.humidity.toFixed(2)}
-      </Text>
-    </View>
-  );
-
-  const renderDBItem = ({ item }: any) => <Text>{item}</Text>;
-  const renderTableItem = ({ item }: any) => <Text>{item}</Text>;
 
   return (
     <View style={styles.container}>
-      <View style={{ marginBottom: 20 }}>
-        <Button
-          title="Refresh Temperature List"
-          onPress={onRefreshTemperatureList}
-          disabled={onProcess}
-        />
-      </View>
-      <Button
-        title="Insert Random Temperature"
-        color="red"
-        onPress={insertRandomTempData}
-        disabled={onProcess}
-      />
-      <FlatList
-        data={temperatureList}
-        renderItem={renderTemperatureItem}
-        keyExtractor={(_: any, index) => index.toString()}
-      />
-
       <Text>*************** create dbs and tables ***************</Text>
       <Button
         title={`Create ${dbName} Database`}
@@ -178,77 +151,11 @@ export default function App() {
           }
         }}
       />
-      <Button
-        title='Create "temperature" Table'
-        color="gray"
-        onPress={async () => {
-          try {
-            const schema = JSON.stringify({
-              timestamp: { type: 'int', required: true, unique: true, datetime: true},
-              temperature: { type: 'float', required: true },
-              humidity: { type: 'float', required: true },
-              status: { type: 'string', required: false },
-            });
-            await createTable(dbName, 'temperature', schema);
-          } catch (error) {
-            console.error('Error creating table:', error);
-          }
-        }}
-      />
-      <Text>*************** list dbs and tables ***************</Text>
-
-      <Button
-        title={`List ${dbName} databases`}
-        color="orange"
-        onPress={async () => {
-          try {
-            const dbList = await listDatabases();
-            setDatabasesList(dbList);
-          } catch (error) {
-            console.error('Error listing databases:', error);
-          }
-        }}
-      />
-      <FlatList
-        data={databasesList}
-        renderItem={renderDBItem}
-        keyExtractor={(_, index) => index.toString()}
-      />
-
-      <Button
-        title={`List ${dbName} tables`}
-        color="purple"
-        onPress={async () => {
-          try {
-            const tableList = await listTables(dbName);
-            setTablesList(tableList);
-          } catch (error) {
-            console.error('Error listing tables:', error);
-          }
-        }}
-      />
-      <FlatList
-        data={tablesList}
-        renderItem={renderTableItem}
-        keyExtractor={(_, index) => index.toString()}
-      />
 
       <Text>*************** delete dbs and tables ***************</Text>
       <Button
-        title='Delete "iot" table'
-        color="grey"
-        onPress={async () => {
-          try {
-            const result = await deleteTable(dbName, 'iot');
-            console.info(result);
-          } catch (error) {
-            console.error('Error deleting table:', error);
-          }
-        }}
-      />
-      <Button
         title={`Delete ${dbName} database`}
-        color="green"
+        color="red"
         onPress={async () => {
           try {
             await deleteDatabase(dbName);
@@ -258,33 +165,40 @@ export default function App() {
         }}
       />
 
+      <Text>*************** Check No field named "date" ***************</Text>
       <Button
-        title="Sink data to S3"
-        color="black"
-        onPress={cloudSinkData}
+        title="Check No field named 'date'"
+        color="orange"
+        onPress={_onPressQueryData}
         disabled={onProcess}
       />
 
+      <Text>*************** SPO2 Parallel Query Test ***************</Text>
       <Button
-        title="fetch data from S3"
-        color="pink"
-        onPress={cloudFetchUserData}
+        title="1. Create SPO2 Table"
+        color="green"
+        onPress={createSpo2Table}
         disabled={onProcess}
       />
-
-      <Text>*************** Sync Metadata Testing ***************</Text>
       <Button
-        title="Get Sync Metadata (temperature table)"
+        title="2. Insert SPO2 Data"
         color="blue"
-        onPress={testGetSyncMetadata}
+        onPress={insertSpo2Data}
         disabled={onProcess}
       />
       <Button
-        title="Get All Sync Metadata (database)"
-        color="teal"
-        onPress={testGetAllSyncMetadata}
+        title="3. Test Parallel Queries (Promise.all)"
+        color="purple"
+        onPress={testParallelQueries}
         disabled={onProcess}
       />
+      <Button
+        title="4. Delete SPO2 Table"
+        color="red"
+        onPress={deleteSpo2Table}
+        disabled={onProcess}
+      />
+
       <StatusBar barStyle="default" />
     </View>
   );
@@ -303,9 +217,5 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#ccc',
     width: '100%',
-  },
-  timestamp: {
-    fontWeight: 'bold',
-    marginBottom: 5,
   },
 });
