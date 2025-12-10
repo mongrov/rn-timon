@@ -38,6 +38,7 @@ class TimonModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     external fun nativeCloudSyncParquet(dbName: String, tableName: String, dateRange: Map<String, String>, userName: String?): String
     external fun nativeCloudSinkParquet(dbName: String, tableName: String): String
     external fun nativeCloudFetchParquet(userName: String, dbName: String, tableName: String, dateRange: Map<String, String>): String
+    external fun nativeCloudFetchParquetBatch(usernames: Array<String>, dbNames: Array<String>, tableNames: Array<String>, dateRange: Map<String, String>): String
 
     // ******************************** Sync Metadata ********************************
     external fun nativeGetSyncMetadata(dbName: String, tableName: String): String
@@ -194,6 +195,36 @@ class TimonModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
             promise.resolve(result)
         } catch (e: Exception) {
             promise.reject("Error sinking monthly parquet", e)
+        }
+    }
+
+    @ReactMethod
+    fun nativeCloudFetchParquetBatch(usernames: ReadableArray, dbNames: ReadableArray, tableNames: ReadableArray, dateRange: ReadableMap?, promise: Promise) {
+        try {
+            // Convert ReadableArray to Array<String>
+            val usernamesArray = Array(usernames.size()) { i ->
+                usernames.getString(i) ?: ""
+            }
+            val dbNamesArray = Array(dbNames.size()) { i ->
+                dbNames.getString(i) ?: ""
+            }
+            val tableNamesArray = Array(tableNames.size()) { i ->
+                tableNames.getString(i) ?: ""
+            }
+            
+            val rustDateRange = if (dateRange != null && dateRange.hasKey("start") && dateRange.hasKey("end")) {
+                mapOf(
+                    "start" to dateRange.getString("start")!!,
+                    "end" to dateRange.getString("end")!!
+                )
+            } else {
+                mapOf("start" to "1970-01-01", "end" to "1970-01-02")
+            }
+            
+            val result = nativeCloudFetchParquetBatch(usernamesArray, dbNamesArray, tableNamesArray, rustDateRange)
+            promise.resolve(result)
+        } catch (e: Exception) {
+            promise.reject("Error batch fetching parquet", e)
         }
     }
 

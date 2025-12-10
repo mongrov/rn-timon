@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, Button, StatusBar, Alert } from 'react-native';
 import {
+  initBucket,
   createDatabase,
   createTable,
   // listDatabases,
@@ -10,18 +11,25 @@ import {
   deleteTable,
   query,
   insert,
+  cloudFetchParquetBatch,
 } from './test-rust-module';
+
+initBucket('https://s3.us-west-2.amazonaws.com', 'zivaoneapp', 'xxx', 'xxx', 'us-west-2').then((result) => {
+  console.log('initBucket result:', result);
+}).catch((error) => {
+  console.error('initBucket error:', error);
+});
 
 export default function App() {
   const [onProcess, setOnProcess] = useState(false);
 
-  const dbName = 'test';
+  const dbName = 'zivaring';
 
   // SPO2 Table Constants
   const DB_NAME = dbName;
-  const SPO2_TABLE = 'spo2_readings';
+  const SPO2_TABLE = 'spo2';
   const TABLES_SCHEMA = {
-    spo2_readings: {
+    spo2: {
       date: {
         type: 'int',
         required: true,
@@ -95,7 +103,7 @@ export default function App() {
           TO_CHAR(TO_TIMESTAMP(date)::TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/London', '%Y.%m.%d %H:%M:%S') AS formatted_date,
           TO_CHAR(TO_TIMESTAMP(date)::TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/London', '%I:%M %P') AS formatted_time
         FROM (
-          SELECT * FROM spo2_readings ORDER BY "date" DESC LIMIT 2
+          SELECT * FROM spo2 ORDER BY "date" DESC LIMIT 2
         ) subquery
       `;
 
@@ -129,12 +137,109 @@ export default function App() {
     TO_CHAR(TO_TIMESTAMP(date)::TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/London', '%Y.%m.%d %H:%M:%S') AS formatted_date,
     TO_CHAR(TO_TIMESTAMP(date)::TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/London', '%I:%M %P') as formatted_time
     FROM (
-    SELECT * FROM spo2_readings ORDER BY \"date\" DESC LIMIT 1
+    SELECT * FROM spo2 ORDER BY "date" DESC LIMIT 1
     ) subquery
     `, null, 0);
 
     console.log('latestResult.status', latestResult);
     console.log('queryResult.status', queryResult);
+  };
+
+  // Test cloudFetchParquetBatch for multiple users
+  const testCloudFetchParquetBatch = async () => {
+    setOnProcess(true);
+    try {
+      const usernames = ['rADQkoFBr4Pks9Y2H_sriram', '7TQBn6aSe49wfnuox_roshann'];
+      const dbNames = ['zivaring'];
+      const tableNames = ['activitydetails', 'heartrate', 'hrv_table', 'spo2'];
+      const dateRange = {
+        start: '2025-01-01',
+        end: '2025-12-30',
+      };
+
+      console.log('🔄 Testing cloudFetchParquetBatch...');
+      console.log('Usernames:', usernames);
+      console.log('Tables:', tableNames);
+      console.log('Date Range:', dateRange);
+
+      const startTime = new Date();
+      const result = await cloudFetchParquetBatch(usernames, dbNames, tableNames, dateRange);
+      const endTime = new Date();
+      const durationSeconds = (endTime.getTime() - startTime.getTime()) / 1000;
+
+      console.log('✅ cloudFetchParquetBatch Result:', result);
+      console.log(`⏱️ Execution time: ${durationSeconds.toFixed(3)} seconds`);
+
+      if (result?.json_value) {
+        const jsonValue = result.json_value;
+        const successCount = jsonValue.success_count || 0;
+        const errorCount = jsonValue.error_count || 0;
+        const totalTasks = jsonValue.total_tasks || 0;
+
+        Alert.alert(
+          'Cloud Fetch Complete',
+          `Success: ${successCount}/${totalTasks}\nErrors: ${errorCount}\nTime: ${durationSeconds.toFixed(2)}s`
+        );
+      } else {
+        Alert.alert('Success', 'cloudFetchParquetBatch completed!');
+      }
+    } catch (error) {
+      console.error('❌ Error in cloudFetchParquetBatch:', error);
+      Alert.alert('Error', `cloudFetchParquetBatch failed: ${error}`);
+    }
+    setOnProcess(false);
+  };
+
+  // Test querying data for multiple users
+  const testMultiUserQueries = async () => {
+    setOnProcess(true);
+    try {
+      const querySQL = 'SELECT COUNT(*) as total FROM spo2';
+      const usernames = [null, 'rADQkoFBr4Pks9Y2H_sriram', '7TQBn6aSe49wfnuox_roshann'];
+      const usernameLabels = ['None (default)', 'User1', 'User2'];
+
+      console.log('🔄 Testing queries for multiple users...');
+      console.log('Query:', querySQL);
+
+      const startTime = new Date();
+      const results = await Promise.all(
+        usernames.map(async (username, index) => {
+          const result = await query('zivaring', querySQL, username, 0);
+          return {
+            username: usernameLabels[index],
+            usernameValue: username,
+            result: result,
+          };
+        })
+      );
+
+      const endTime = new Date();
+      const durationSeconds = (endTime.getTime() - startTime.getTime()) / 1000;
+
+      console.log('✅ Multi-User Query Results:');
+      results.forEach(({ username, result }) => {
+        const count = result?.[0]?.total || 0;
+        console.log(`  ${username}: ${count} rows`);
+      });
+      console.log(`⏱️ Total execution time: ${durationSeconds.toFixed(3)} seconds`);
+
+      // Show results in alert
+      const resultSummary = results
+        .map(({ username, result }) => {
+          const count = result?.[0]?.total || 0;
+          return `${username}: ${count} rows`;
+        })
+        .join('\n');
+
+      Alert.alert(
+        'Multi-User Query Results',
+        `${resultSummary}\n\nTime: ${durationSeconds.toFixed(2)}s`
+      );
+    } catch (error) {
+      console.error('❌ Error in multi-user queries:', error);
+      Alert.alert('Error', `Multi-user query failed: ${error}`);
+    }
+    setOnProcess(false);
   };
 
   return (
@@ -196,6 +301,20 @@ export default function App() {
         title="4. Delete SPO2 Table"
         color="red"
         onPress={deleteSpo2Table}
+        disabled={onProcess}
+      />
+
+      <Text>*************** Cloud Fetch & Multi-User Queries ***************</Text>
+      <Button
+        title="Test cloudFetchParquetBatch"
+        color="teal"
+        onPress={testCloudFetchParquetBatch}
+        disabled={onProcess}
+      />
+      <Button
+        title="Test Multi-User Queries"
+        color="navy"
+        onPress={testMultiUserQueries}
         disabled={onProcess}
       />
 

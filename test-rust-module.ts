@@ -148,6 +148,16 @@ export const cloudFetchParquet = async (userName: String, dbName: String, tableN
   }
 };
 
+export const cloudFetchParquetBatch = async (usernames: string[], dbNames: string[], tableNames: string[], dateRange: { start: string, end: string }) => {
+  try {
+    const result = await TimonModule.nativeCloudFetchParquetBatch(usernames, dbNames, tableNames, dateRange);
+    console.info(result, 'cloudFetchParquetBatch');
+    return parseJson(result);
+  } catch(error) {
+    console.error('Error calling cloudFetchParquetBatch: ', error);
+  }
+};
+
 // ******************************** Sync Metadata ********************************
 export const getSyncMetadata = async (dbName: string, tableName: string) => {
   try {
