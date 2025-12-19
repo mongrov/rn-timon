@@ -6,7 +6,6 @@ import {
   createTable,
   // listDatabases,
   // listTables,
-  // preloadTables,
   deleteDatabase,
   deleteTable,
   query,
@@ -242,8 +241,19 @@ export default function App() {
     setOnProcess(false);
   };
 
+  const _onPressInsert = async () => {
+    const tempData = [{ date: '2025.12.15 12:00:00', automaticSpo2Data: 85 }, { date: '2025.12.15 12:05:00', automaticSpo2Data: 90 }];
+
+    const insertResult = await insert(DB_NAME, 'spo2', tempData);
+    console.log({ insertResult });
+
+    const queryResult = await query(DB_NAME, 'SELECT * FROM spo2', null, 0);
+    console.log({ queryResulttttttt: queryResult });
+  };
+
   return (
     <View style={styles.container}>
+      <Button title="Insert Heart Rate Data and Query" onPress={_onPressInsert} />
       <Text>*************** create dbs and tables ***************</Text>
       <Button
         title={`Create ${dbName} Database`}

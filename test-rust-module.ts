@@ -95,16 +95,6 @@ export const query = async (dbName: string, sqlQuery: string, userName: string |
   }
 };
 
-export const preloadTables = async (dbName: string, tableNames: string[], userName: string | null) => {
-  try {
-    const result = await TimonModule.nativePreloadTables(dbName, tableNames, userName);
-    console.info(result, 'preloadTables');
-    const parsedResult = parseJson(result);
-    return parsedResult;
-  } catch (error) {
-    console.error('Error calling preloadTables: ', error);
-  }
-};
 
 export const insert = async (dbName: string, tableName: string, jsonData: Array<object>) => {
   try {
@@ -155,26 +145,5 @@ export const cloudFetchParquetBatch = async (usernames: string[], dbNames: strin
     return parseJson(result);
   } catch(error) {
     console.error('Error calling cloudFetchParquetBatch: ', error);
-  }
-};
-
-// ******************************** Sync Metadata ********************************
-export const getSyncMetadata = async (dbName: string, tableName: string) => {
-  try {
-    const result = await TimonModule.nativeGetSyncMetadata(dbName, tableName);
-    console.info(result, 'getSyncMetadata');
-    return parseJson(result);
-  } catch(error) {
-    console.error('Error calling getSyncMetadata: ', error);
-  }
-};
-
-export const getAllSyncMetadata = async (dbName: string) => {
-  try {
-    const result = await TimonModule.nativeGetAllSyncMetadata(dbName);
-    console.info(result, 'getAllSyncMetadata');
-    return parseJson(result);
-  } catch(error) {
-    console.error('Error calling getAllSyncMetadata: ', error);
   }
 };
