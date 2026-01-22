@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, Button, StatusBar, Alert } from 'react-native';
 import {
-  initBucket,
+  initBucketFromSecureStorage,
+  fetchAndStoreCredentials,
   createDatabase,
   createTable,
   // listDatabases,
@@ -13,11 +14,44 @@ import {
   cloudFetchParquetBatch,
 } from './test-rust-module';
 
-initBucket('https://s3.us-west-2.amazonaws.com', 'zivaoneapp', 'xxx', 'xxx', 'us-west-2').then((result) => {
-  console.log('initBucket result:', result);
-}).catch((error) => {
-  console.error('initBucket error:', error);
-});
+// SECURITY: Credentials are now stored securely in Android Keystore
+// Initialize bucket using credentials from secure storage
+(async () => {
+  try {
+    // Try to initialize from secure storage
+    await initBucketFromSecureStorage();
+    console.log('✅ Bucket initialized from secure storage');
+  } catch (error: any) {
+    console.error('❌ Failed to initialize from secure storage:', error);
+    // If credentials not found, handle appropriately
+    if (error?.message?.includes('CREDENTIALS_NOT_FOUND') ||
+        error?.message?.includes('No credentials found')) {
+      console.warn('⚠️  Credentials not found in secure storage.');
+      console.warn('📝 To store credentials, call storeCredentialsSecurely() with credentials from your secure backend.');
+      console.warn('🔒 In production, fetch credentials from a secure backend API, never hardcode them!');
+
+      // For Android Emulator: use 10.0.2.2 to access host machine's localhost
+      // For Physical Device: use your machine's IP address (e.g., http://192.168.1.100:3000)
+      const CREDENTIAL_SERVER_URL = 'http://10.0.2.2:3000'; // Android emulator special IP
+      const API_KEY = '892c3770f2c79e2c09099420eac8cececbf8940087a8cff595628a4505b49643'; // ⚠️ Get this from secure storage or backend
+
+      // For development: Try fetching from server if configured
+      if (CREDENTIAL_SERVER_URL && API_KEY) {
+        try {
+          console.log('📡 Attempting to fetch credentials from server...');
+          await fetchAndStoreCredentials(CREDENTIAL_SERVER_URL, API_KEY);
+
+          // Retry initialization after storing
+          await initBucketFromSecureStorage();
+          console.log('✅ Bucket initialized successfully from server credentials');
+          return;
+        } catch (serverError: any) {
+          console.warn('⚠️  Failed to fetch from server:', serverError.message);
+        }
+      }
+    }
+  }
+})();
 
 export default function App() {
   const [onProcess, setOnProcess] = useState(false);

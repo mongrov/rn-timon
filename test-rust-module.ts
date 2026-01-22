@@ -107,6 +107,141 @@ export const insert = async (dbName: string, tableName: string, jsonData: Array<
 };
 
 // ******************************** S3 Compatible Storage ********************************
+
+/**
+ * Initialize bucket using credentials from secure storage (Android Keystore)
+ * This is the recommended method as credentials are stored securely.
+ */
+export const initBucketFromSecureStorage = async () => {
+  try {
+    const result = await TimonModule.initBucketFromSecureStorage();
+    console.info(result, 'initBucketFromSecureStorage');
+    return result;
+  } catch(error) {
+    console.error('Error calling initBucketFromSecureStorage: ', error);
+    throw error;
+  }
+};
+
+/**
+ * Store credentials securely in Android Keystore
+ * This should only be called during initial setup or credential rotation.
+ * Credentials are encrypted using AES-256-GCM and stored in Android Keystore.
+ */
+export const storeCredentialsSecurely = async (
+  bucket_endpoint: string,
+  bucket_name: string,
+  access_key_id: string,
+  secret_access_key: string,
+  bucket_region: string
+) => {
+  try {
+    const result = await TimonModule.storeCredentialsSecurely(
+      bucket_endpoint,
+      bucket_name,
+      access_key_id,
+      secret_access_key,
+      bucket_region
+    );
+    console.info(result, 'storeCredentialsSecurely');
+    return result;
+  } catch(error) {
+    console.error('Error calling storeCredentialsSecurely: ', error);
+    throw error;
+  }
+};
+
+/**
+ * Fetch AWS credentials from secure backend server
+ * @param serverUrl - Base URL of the credential server (e.g., 'http://localhost:3000' or 'https://api.example.com')
+ * @param apiKey - API key for authentication
+ * @returns Promise with credentials object
+ */
+export const fetchCredentialsFromServer = async (
+  serverUrl: string,
+  apiKey: string
+): Promise<{
+  bucketEndpoint: string;
+  bucketName: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  bucketRegion: string;
+}> => {
+  try {
+    const url = `${serverUrl.replace(/\/$/, '')}/api/aws-credentials`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'X-API-Key': apiKey,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.message || `Server returned ${response.status}: ${response.statusText}`
+      );
+    }
+
+    const data = await response.json();
+
+    if (!data.success || !data.credentials) {
+      throw new Error('Invalid response format from server');
+    }
+
+    const { credentials } = data;
+
+    // Validate all required fields are present
+    const required = ['bucketEndpoint', 'bucketName', 'accessKeyId', 'secretAccessKey', 'bucketRegion'];
+    const missing = required.filter(field => !credentials[field]);
+
+    if (missing.length > 0) {
+      throw new Error(`Missing credentials: ${missing.join(', ')}`);
+    }
+
+    return credentials;
+  } catch (error: any) {
+    console.error('Error fetching credentials from server:', error);
+    throw new Error(`Failed to fetch credentials: ${error.message}`);
+  }
+};
+
+/**
+ * Fetch credentials from server and store them securely
+ * @param serverUrl - Base URL of the credential server
+ * @param apiKey - API key for authentication
+ */
+export const fetchAndStoreCredentials = async (
+  serverUrl: string,
+  apiKey: string
+): Promise<void> => {
+  try {
+    console.log('📡 Fetching credentials from server...');
+    const credentials = await fetchCredentialsFromServer(serverUrl, apiKey);
+
+    console.log('🔒 Storing credentials securely...');
+    await storeCredentialsSecurely(
+      credentials.bucketEndpoint,
+      credentials.bucketName,
+      credentials.accessKeyId,
+      credentials.secretAccessKey,
+      credentials.bucketRegion
+    );
+
+    console.log('✅ Credentials fetched and stored successfully');
+  } catch (error: any) {
+    console.error('❌ Failed to fetch and store credentials:', error);
+    throw error;
+  }
+};
+
+/**
+ * Initialize bucket with credentials (legacy method - use initBucketFromSecureStorage instead)
+ * WARNING: This method passes credentials in plain text through the JNI layer.
+ * Only use this for testing or migration purposes.
+ * @deprecated Use initBucketFromSecureStorage() instead
+ */
 export const initBucket = async (bucket_endpoint: string, bucket_name: string, access_key_id: string, secret_access_key: string, bucket_region: string) => {
   try {
     const result = await TimonModule.nativeInitBucket(bucket_endpoint, bucket_name, access_key_id, secret_access_key, bucket_region);
@@ -114,6 +249,7 @@ export const initBucket = async (bucket_endpoint: string, bucket_name: string, a
     return result;
   } catch(error) {
     console.error('Error calling initBucket: ', error);
+    throw error;
   }
 };
 

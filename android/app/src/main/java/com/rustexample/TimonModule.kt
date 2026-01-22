@@ -3,6 +3,7 @@ package com.rustexample
 import com.facebook.react.bridge.*
 import com.facebook.react.module.annotations.ReactModule
 import java.lang.reflect.Method
+import android.os.Debug
 
 @ReactModule(name = TimonModule.NAME)
 class TimonModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
@@ -147,11 +148,111 @@ class TimonModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     @ReactMethod
     fun nativeInitBucket(bucket_endpoint: String, bucket_name: String, access_key_id: String, secret_access_key: String, bucket_region: String, promise: Promise) {
         try {
+            // Security check: Detect debugging/tampering
+            if (isDebuggingDetected()) {
+                promise.reject("SECURITY_ERROR", "Debugging or tampering detected. Operation refused.", null)
+                return
+            }
+            
             val result = nativeInitBucket(bucket_endpoint, bucket_name, access_key_id, secret_access_key, bucket_region)
             promise.resolve(result)
         } catch (e: Exception) {
             promise.reject("Error initializing bucket", e)
         }
+    }
+    
+    /**
+     * Initialize bucket using credentials from secure storage
+     */
+    @ReactMethod
+    fun initBucketFromSecureStorage(promise: Promise) {
+        try {
+            // Security check: Detect debugging/tampering
+            if (isDebuggingDetected()) {
+                promise.reject("SECURITY_ERROR", "Debugging or tampering detected. Operation refused.", null)
+                return
+            }
+            
+            val credentialManager = SecureCredentialManager.getInstance(reactApplicationContext)
+            val credentials = credentialManager.retrieveCredentials()
+            
+            if (credentials == null) {
+                promise.reject("CREDENTIALS_NOT_FOUND", "No credentials found in secure storage. Please store credentials first.", null)
+                return
+            }
+            
+            val result = nativeInitBucket(
+                credentials.bucketEndpoint,
+                credentials.bucketName,
+                credentials.accessKeyId,
+                credentials.secretAccessKey,
+                credentials.bucketRegion
+            )
+            promise.resolve(result)
+        } catch (e: Exception) {
+            promise.reject("Error initializing bucket from secure storage", e)
+        }
+    }
+    
+    /**
+     * Store credentials securely in Android Keystore
+     */
+    @ReactMethod
+    fun storeCredentialsSecurely(
+        bucket_endpoint: String,
+        bucket_name: String,
+        access_key_id: String,
+        secret_access_key: String,
+        bucket_region: String,
+        promise: Promise
+    ) {
+        try {
+            android.util.Log.d("TimonModule", "Attempting to store credentials securely...")
+            val credentialManager = SecureCredentialManager.getInstance(reactApplicationContext)
+            val success = credentialManager.storeCredentials(
+                bucket_endpoint,
+                bucket_name,
+                access_key_id,
+                secret_access_key,
+                bucket_region
+            )
+            
+            if (success) {
+                android.util.Log.d("TimonModule", "Credentials stored successfully")
+                promise.resolve("Credentials stored securely")
+            } else {
+                android.util.Log.e("TimonModule", "Failed to store credentials - check logcat for details")
+                promise.reject("STORAGE_ERROR", "Failed to store credentials securely. Check logcat for details.", null)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("TimonModule", "Exception storing credentials: ${e.message}", e)
+            promise.reject("STORAGE_ERROR", "Error storing credentials: ${e.message}", e)
+        }
+    }
+    
+    /**
+     * Check if debugging or tampering is detected
+     */
+    private fun isDebuggingDetected(): Boolean {
+        // Check if debugger is attached
+        if (Debug.isDebuggerConnected()) {
+            return true
+        }
+        
+        // Check for Frida (common hooking framework)
+        try {
+            // Frida detection: Check for frida-server process
+            val process = Runtime.getRuntime().exec("ps")
+            val reader = process.inputStream.bufferedReader()
+            val output = reader.readText()
+            if (output.contains("frida-server") || output.contains("frida")) {
+                return true
+            }
+        } catch (e: Exception) {
+            // Ignore errors in detection
+        }
+        
+        return false
     }
 
     @ReactMethod
